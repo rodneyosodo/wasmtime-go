@@ -34,8 +34,9 @@ This Go library uses CGO to consume the C API of the [Wasmtime
 project][wasmtime] which is written in Rust. Precompiled binaries of Wasmtime
 are checked into this repository on tagged releases so you won't have to install
 Wasmtime locally, but it means that this project only works on Linux x86\_64,
-macOS x86\_64 , and Windows x86\_64 currently. Building on other platforms will
-need to arrange to build Wasmtime and use `CGO_*` env vars to compile correctly.
+Linux aarch64, macOS x86\_64, macOS aarch64, and Windows x86\_64 currently.
+Building on other platforms will need to arrange to build Wasmtime and use
+`CGO_*` env vars to compile correctly.
 
 This project has been tested with Go 1.13 or later.
 
@@ -130,11 +131,11 @@ $ git clone https://github.com/bytecodealliance/wasmtime-go
 Next up you'll want to have a [local Wasmtime build
 available](https://bytecodealliance.github.io/wasmtime/contributing-building.html).
 
-You'll need to build at least the `wasmtime-c-api` crate, which, at the time of
-this writing, would be:
+You'll need to build the `wasmtime-c-api` artifact crate to produce the static
+library (`libwasmtime.a`) and shared library (`libwasmtime.so`):
 
 ```sh
-$ cargo build -p wasmtime-c-api
+$ cargo build --release -p wasmtime-c-api --manifest-path crates/c-api/artifact/Cargo.toml
 ```
 
 Once you've got that you can set up the environment of this library with:
@@ -152,6 +153,25 @@ $ go test
 
 And after that you should be good to go!
 
+### Cross-compiling for Linux riscv64
+
+Pass `riscv64` as the second argument to `ci/local.sh`. This requires
+[zig](https://ziglang.org/) as the C cross-compiler:
+
+```sh
+$ ./ci/local.sh /path/to/wasmtime riscv64
+```
+
+This will automatically install the Rust target, cross-compile the Wasmtime C
+API artifact, and set up the `build/linux-riscv64` directory. Then cross-compile
+your Go program:
+
+```sh
+$ GOOS=linux GOARCH=riscv64 CGO_ENABLED=1 \
+  CC="zig cc -target riscv64-linux-gnu" \
+  go build -ldflags "-s -w" ./main.go
+```
+
 ### Release Checklist
 
 First run:
@@ -166,7 +186,7 @@ Make sure everything passes at the current version.
 Next run:
 
 ```
-$ git ls-files | xargs sed -i 's/v16/v17/g'
+$ git ls-files | xargs sed -i 's/v44/v45/g'
 $ python3 ci/download-wasmtime.py
 $ go test
 ```
