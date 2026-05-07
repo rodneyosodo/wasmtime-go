@@ -34,7 +34,7 @@ jobs:
         if: matrix.goarch == 'arm64'
         run: sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu
 
-      - name: Install zig and Rust (riscv64)
+      - name: Install zig (riscv64)
         if: matrix.goarch == 'riscv64'
         uses: mlugg/setup-zig@v2
         with:
@@ -44,13 +44,13 @@ jobs:
         if: matrix.goarch == 'riscv64'
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Build wasmtime and set up riscv64
+      - name: Build wasmtime for riscv64
         if: matrix.goarch == 'riscv64'
         run: |
+          rustup target add riscv64gc-unknown-linux-gnu
           git clone --depth 1 https://github.com/bytecodealliance/wasmtime.git /tmp/wasmtime
-          cd /tmp/wasmtime && git submodule update --init
-          cargo build --release -p wasmtime-c-api --manifest-path crates/c-api/artifact/Cargo.toml
-          cd -
+          git -C /tmp/wasmtime submodule update --init
+          cargo build --release -p wasmtime-c-api --manifest-path /tmp/wasmtime/crates/c-api/artifact/Cargo.toml
           ./ci/local.sh /tmp/wasmtime riscv64
 
       - name: Build example (amd64)
