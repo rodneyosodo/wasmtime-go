@@ -33,6 +33,9 @@ try:
 except FileNotFoundError:
     os.makedirs('build')
 
+# Ensure linux-riscv64 directory exists (not in official releases, but imported by includebuild.go)
+os.makedirs('build/linux-riscv64', exist_ok=True)
+
 for i, arr in enumerate(urls):
     filename, dirname = arr
     filename = filename.format(version)
