@@ -1,5 +1,16 @@
 #!/bin/bash
 
+copy_c_api_headers() {
+  local wasmtime_dir=$1 build_dir=$2
+  cp "$wasmtime_dir"/crates/c-api/include/*.h build/include
+  cp -r "$wasmtime_dir"/crates/c-api/include/wasmtime build/include
+  local conf
+  conf=$(find "$build_dir"/build/wasmtime-c-api-impl-*/out/include/wasmtime/conf.h 2>/dev/null | head -1)
+  if [ -n "$conf" ]; then
+    cp "$conf" build/include/wasmtime/conf.h
+  fi
+}
+
 wasmtime=$1
 if [ "$wasmtime" = "" ]; then
   echo "usage: $0 <path-to-wasmtime> [target]"
@@ -36,13 +47,7 @@ if [ "$target" = "riscv64" ]; then
 
   cp "$build/libwasmtime.a" "build/linux-riscv64/libwasmtime.a"
 
-  cp "$wasmtime"/crates/c-api/include/*.h build/include
-  cp -r "$wasmtime"/crates/c-api/include/wasmtime build/include
-
-  conf=$(find "$build"/build/wasmtime-c-api-impl-*/out/include/wasmtime/conf.h 2>/dev/null | head -1)
-  if [ -n "$conf" ]; then
-    cp "$conf" build/include/wasmtime/conf.h
-  fi
+  copy_c_api_headers "$wasmtime" "$build"
 
   echo "riscv64 build ready. Cross-compile with:"
   echo "  GOOS=linux GOARCH=riscv64 CGO_ENABLED=1 CC=\"zig cc -target riscv64-linux-gnu\" go build -ldflags \"-s -w\" ./main.go"
@@ -67,16 +72,11 @@ build=$(cd "$build" && pwd)
 if [ ! -f "$build/libwasmtime.a" ]; then
   echo 'Missing libwasmtime.a. Build with:'
   echo '  cargo build --release -p wasmtime-c-api --manifest-path crates/c-api/artifact/Cargo.toml'
+  exit 1
 fi
 
 for d in "linux-x86_64" "macos-x86_64" "linux-aarch64" "macos-aarch64"; do
   ln -s "$build/libwasmtime.a" "build/$d/libwasmtime.a"
 done
 
-cp "$wasmtime"/crates/c-api/include/*.h build/include
-cp -r "$wasmtime"/crates/c-api/include/wasmtime build/include
-
-conf=$(find "$build"/build/wasmtime-c-api-impl-*/out/include/wasmtime/conf.h 2>/dev/null | head -1)
-if [ -n "$conf" ]; then
-  cp "$conf" build/include/wasmtime/conf.h
-fi
+copy_c_api_headers "$wasmtime" "$build"

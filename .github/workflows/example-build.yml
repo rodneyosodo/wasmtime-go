@@ -47,10 +47,8 @@ jobs:
       - name: Build wasmtime for riscv64
         if: matrix.goarch == 'riscv64'
         run: |
-          rustup target add riscv64gc-unknown-linux-gnu
-          git clone --depth 1 https://github.com/bytecodealliance/wasmtime.git /tmp/wasmtime
+          git clone --depth 1 --branch v44.0.0 https://github.com/bytecodealliance/wasmtime.git /tmp/wasmtime
           git -C /tmp/wasmtime submodule update --init
-          cargo build --release -p wasmtime-c-api --manifest-path /tmp/wasmtime/crates/c-api/artifact/Cargo.toml
           ./ci/local.sh /tmp/wasmtime riscv64
 
       - name: Build example (amd64)

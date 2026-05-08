@@ -3,25 +3,27 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
-trap 'rm -rf vendor module.cwasm' EXIT
 
 WASMTIME_GO="$(cd "$SCRIPT_DIR/../.." && pwd)"
 DOWNLOAD_SCRIPT="$WASMTIME_GO/ci/download-wasmtime.py"
 
 # Step 1: Ensure the local wasmtime-go build directory has the v44 full libraries.
 # The local build may contain libraries built from a different wasmtime version
-# (e.g., v46 from local Rust source), which causes serialization format mismatches.
+# (e.g., a newer version built from local Rust source), which causes serialization format mismatches.
 # We temporarily replace them with the official v44 release binaries.
 # Backup linux-riscv64 FIRST since download-wasmtime.py clears all files in build/.
+_riscv64_backup=""
 if [ -f "$WASMTIME_GO/build/linux-riscv64/libwasmtime.a" ]; then
-  cp "$WASMTIME_GO/build/linux-riscv64/libwasmtime.a" /tmp/linux-riscv64-libwasmtime.a
+  _riscv64_backup=$(mktemp /tmp/linux-riscv64-libwasmtime-XXXXXX.a)
+  cp "$WASMTIME_GO/build/linux-riscv64/libwasmtime.a" "$_riscv64_backup"
 fi
+trap 'rm -rf vendor module.cwasm; [ -n "$_riscv64_backup" ] && [ -f "$_riscv64_backup" ] && mv "$_riscv64_backup" "$WASMTIME_GO/build/linux-riscv64/libwasmtime.a" || true' EXIT
 (
   cd "$WASMTIME_GO"
   python3 "$DOWNLOAD_SCRIPT"
 )
-if [ -f /tmp/linux-riscv64-libwasmtime.a ]; then
-  mv /tmp/linux-riscv64-libwasmtime.a "$WASMTIME_GO/build/linux-riscv64/libwasmtime.a"
+if [ -n "$_riscv64_backup" ] && [ -f "$_riscv64_backup" ]; then
+  mv "$_riscv64_backup" "$WASMTIME_GO/build/linux-riscv64/libwasmtime.a"
 fi
 
 # Step 2: Create a pre-compiled module using the full Wasmtime library.

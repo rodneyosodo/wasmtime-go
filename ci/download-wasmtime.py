@@ -22,7 +22,7 @@ urls = [
     ['wasmtime-{}-x86_64-macos-c-api.tar.xz', 'macos-x86_64'],
     ['wasmtime-{}-aarch64-linux-c-api.tar.xz', 'linux-aarch64'],
     ['wasmtime-{}-aarch64-macos-c-api.tar.xz', 'macos-aarch64'],
-    ['wasmtime-{}-riscv64gc-unknown-linux-gnu-c-api.tar.xz', 'linux-riscv64'],
+    ['wasmtime-{}-riscv64gc-linux-c-api.tar.xz', 'linux-riscv64'],
 ]
 
 try:
@@ -50,13 +50,19 @@ for i, arr in enumerate(urls):
         z.extractall()
     else:
         t = tarfile.open(fileobj=io.BytesIO(contents))
-        t.extractall()
+        if hasattr(tarfile, 'data_filter'):
+            t.extractall(filter='data')
+        else:
+            t.extractall()
 
     src = filename.replace('.zip', '').replace('.tar.xz', '')
     include_src = src + '/min/include' if args.min else src + '/include'
     if i == 0:
         shutil.copytree(include_src, 'build/include', dirs_exist_ok=True)
 
+    if args.min and dirname == 'linux-riscv64':
+        shutil.rmtree(src)
+        continue
     lib_src = src + '/min/lib' if args.min else src + '/lib'
     shutil.copytree(lib_src, 'build/' + dirname, dirs_exist_ok=True)
     shutil.rmtree(src)
