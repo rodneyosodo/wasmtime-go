@@ -14,7 +14,7 @@ DOWNLOAD_SCRIPT="$WASMTIME_GO/ci/download-wasmtime.py"
 # Backup linux-riscv64 FIRST since download-wasmtime.py clears all files in build/.
 _riscv64_backup=""
 if [ -f "$WASMTIME_GO/build/linux-riscv64/libwasmtime.a" ]; then
-  _riscv64_backup=$(mktemp /tmp/linux-riscv64-libwasmtime-XXXXXX.a)
+  _riscv64_backup=$(mktemp "${TMPDIR:-/tmp}/linux-riscv64-libwasmtime-XXXXXX.a")
   cp "$WASMTIME_GO/build/linux-riscv64/libwasmtime.a" "$_riscv64_backup"
 fi
 trap 'rm -rf vendor module.cwasm; [ -n "$_riscv64_backup" ] && [ -f "$_riscv64_backup" ] && mv "$_riscv64_backup" "$WASMTIME_GO/build/linux-riscv64/libwasmtime.a" || true' EXIT
