@@ -167,6 +167,7 @@ API artifact, and set up the `build/linux-riscv64` directory. Then cross-compile
 your Go program:
 
 ```sh
+$ cd example
 $ GOOS=linux GOARCH=riscv64 CGO_ENABLED=1 \
   CC="zig cc -target riscv64-linux-gnu" \
   go build -ldflags "-s -w" ./main.go

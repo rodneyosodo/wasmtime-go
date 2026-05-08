@@ -56,7 +56,7 @@ fi
 
 # Clean and re-create "build" directory hierarchy
 rm -rf build
-for d in "include" "include/wasmtime" "include/wasmtime/component" "include/wasmtime/component/types" "include/wasmtime/types" "linux-x86_64" "macos-x86_64" "windows-x86_64" "linux-aarch64" "macos-aarch64"; do
+for d in "include" "include/wasmtime" "include/wasmtime/component" "include/wasmtime/component/types" "include/wasmtime/types" "linux-x86_64" "macos-x86_64" "windows-x86_64" "linux-aarch64" "macos-aarch64" "linux-riscv64"; do
   path="build/$d"
   mkdir -p "$path"
   name=$(basename $d | tr - _)
