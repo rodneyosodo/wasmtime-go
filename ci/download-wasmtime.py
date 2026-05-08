@@ -22,6 +22,7 @@ urls = [
     ['wasmtime-{}-x86_64-macos-c-api.tar.xz', 'macos-x86_64'],
     ['wasmtime-{}-aarch64-linux-c-api.tar.xz', 'linux-aarch64'],
     ['wasmtime-{}-aarch64-macos-c-api.tar.xz', 'macos-aarch64'],
+    ['wasmtime-{}-riscv64gc-unknown-linux-gnu-c-api.tar.xz', 'linux-riscv64'],
 ]
 
 try:
@@ -32,9 +33,6 @@ try:
             os.unlink(os.path.join(subdir, file))
 except FileNotFoundError:
     os.makedirs('build')
-
-# Ensure linux-riscv64 directory exists (not in official releases, but imported by includebuild.go)
-os.makedirs('build/linux-riscv64', exist_ok=True)
 
 for i, arr in enumerate(urls):
     filename, dirname = arr
