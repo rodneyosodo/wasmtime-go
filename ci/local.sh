@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 copy_c_api_headers() {
   local wasmtime_dir=$1 build_dir=$2
@@ -39,9 +40,24 @@ if [ "$target" = "riscv64" ]; then
 
   if [ ! -f "$build/libwasmtime.a" ]; then
     echo "Building wasmtime-c-api for $rust_target ..."
-    CC_riscv64gc_unknown_linux_gnu="zig cc -target riscv64-linux-gnu" \
+    # Zig 0.14+ interprets --target as its own native target flag, but the cc
+    # crate passes an LLVM triple (e.g. --target=riscv64-unknown-linux-gnu)
+    # when cross-compiling. Use a wrapper that strips the conflicting flag.
+    zig_wrapper=$(mktemp)
+    cat > "$zig_wrapper" <<'EOF'
+#!/bin/bash
+args=()
+for arg in "$@"; do
+  [[ "$arg" == --target=* ]] && continue
+  args+=("$arg")
+done
+exec zig cc -target riscv64-linux-gnu "${args[@]}"
+EOF
+    chmod +x "$zig_wrapper"
+    CC_riscv64gc_unknown_linux_gnu="$zig_wrapper" \
       cargo build --release --target "$rust_target" \
         -p wasmtime-c-api --manifest-path "$wasmtime/crates/c-api/artifact/Cargo.toml"
+    rm -f "$zig_wrapper"
     build="$wasmtime/target/$rust_target/release"
   fi
 
