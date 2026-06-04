@@ -60,6 +60,9 @@ for i, arr in enumerate(urls):
     if i == 0:
         shutil.copytree(include_src, 'build/include', dirs_exist_ok=True)
 
+    # The minimal runtime is not published for riscv64; skip it so we
+    # do not overwrite a locally-built full library with a missing min
+    # artifact.
     if args.min and dirname == 'linux-riscv64':
         shutil.rmtree(src)
         continue

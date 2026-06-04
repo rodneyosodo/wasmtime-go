@@ -25,7 +25,7 @@
 ## Installation
 
 ```sh
-go get -u github.com/bytecodealliance/wasmtime-go/v45@v45.0.1
+go get -u github.com/bytecodealliance/wasmtime-go/v45@v45.0.0
 ```
 
 Be sure to check out the [API documentation][api]!
