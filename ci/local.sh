@@ -43,8 +43,12 @@ if [ "$target" = "riscv64" ]; then
     # Zig 0.14+ interprets --target as its own native target flag, but the cc
     # crate passes an LLVM triple (e.g. --target=riscv64-unknown-linux-gnu)
     # when cross-compiling. Use a wrapper that strips the conflicting flag.
-    zig_wrapper=$(mktemp)
-    cat > "$zig_wrapper" <<'EOF'
+    # Cargo's CC env var can accept a command string, but the LINKER env var
+    # expects a single executable path. Create two wrapper scripts: one for
+    # compiling (strips --target to avoid Zig flag collision) and one for
+    # linking (invokes zig cc directly).
+    zig_cc_wrapper=$(mktemp)
+    cat > "$zig_cc_wrapper" <<'EOF'
 #!/bin/bash
 args=()
 for arg in "$@"; do
@@ -53,12 +57,20 @@ for arg in "$@"; do
 done
 exec zig cc -target riscv64-linux-gnu "${args[@]}"
 EOF
-    chmod +x "$zig_wrapper"
-    CC_riscv64gc_unknown_linux_gnu="$zig_wrapper" \
-      CARGO_TARGET_RISCV64GC_UNKNOWN_LINUX_GNU_LINKER="zig cc -target riscv64-linux-gnu" \
+    chmod +x "$zig_cc_wrapper"
+
+    zig_ld_wrapper=$(mktemp)
+    cat > "$zig_ld_wrapper" <<'EOF'
+#!/bin/bash
+exec zig cc -target riscv64-linux-gnu "$@"
+EOF
+    chmod +x "$zig_ld_wrapper"
+
+    CC_riscv64gc_unknown_linux_gnu="$zig_cc_wrapper" \
+      CARGO_TARGET_RISCV64GC_UNKNOWN_LINUX_GNU_LINKER="$zig_ld_wrapper" \
       cargo build --release --target "$rust_target" \
         -p wasmtime-c-api --manifest-path "$wasmtime/crates/c-api/artifact/Cargo.toml"
-    rm -f "$zig_wrapper"
+    rm -f "$zig_cc_wrapper" "$zig_ld_wrapper"
     build="$wasmtime/target/$rust_target/release"
   fi
 
