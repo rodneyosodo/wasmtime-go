@@ -55,6 +55,7 @@ exec zig cc -target riscv64-linux-gnu "${args[@]}"
 EOF
     chmod +x "$zig_wrapper"
     CC_riscv64gc_unknown_linux_gnu="$zig_wrapper" \
+      CARGO_TARGET_RISCV64GC_UNKNOWN_LINUX_GNU_LINKER="zig cc -target riscv64-linux-gnu" \
       cargo build --release --target "$rust_target" \
         -p wasmtime-c-api --manifest-path "$wasmtime/crates/c-api/artifact/Cargo.toml"
     rm -f "$zig_wrapper"
