@@ -7,10 +7,10 @@ cd "$SCRIPT_DIR"
 WASMTIME_GO="$(cd "$SCRIPT_DIR/../.." && pwd)"
 DOWNLOAD_SCRIPT="$WASMTIME_GO/ci/download-wasmtime.py"
 
-# Step 1: Ensure the local wasmtime-go build directory has the v44 full libraries.
+# Step 1: Ensure the local wasmtime-go build directory has the v45 full libraries.
 # The local build may contain libraries built from a different wasmtime version
 # (e.g., a newer version built from local Rust source), which causes serialization format mismatches.
-# We temporarily replace them with the official v44 release binaries.
+# We temporarily replace them with the official v45 release binaries.
 # Backup linux-riscv64 FIRST since download-wasmtime.py clears all files in build/.
 _riscv64_backup=""
 if [ -f "$WASMTIME_GO/build/linux-riscv64/libwasmtime.a" ]; then

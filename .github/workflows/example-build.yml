@@ -47,7 +47,7 @@ jobs:
       - name: Build wasmtime for riscv64
         if: matrix.goarch == 'riscv64'
         run: |
-          git clone --depth 1 --branch v44.0.0 https://github.com/bytecodealliance/wasmtime.git /tmp/wasmtime
+          git clone --depth 1 --branch v45.0.0 https://github.com/bytecodealliance/wasmtime.git /tmp/wasmtime
           git -C /tmp/wasmtime submodule update --init
           ./ci/local.sh /tmp/wasmtime riscv64
 

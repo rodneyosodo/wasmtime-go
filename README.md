@@ -187,7 +187,7 @@ Make sure everything passes at the current version.
 Next run:
 
 ```
-$ git ls-files | xargs sed -i 's/v44/v45/g'
+$ git ls-files | xargs sed -i 's/v45/v46/g'
 $ python3 ci/download-wasmtime.py
 $ go test
 ```
