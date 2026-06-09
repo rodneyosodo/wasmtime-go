@@ -77,6 +77,103 @@ jobs:
       run: ./ci/test-minimal-runtime/test.sh
       if: runner.os != 'Windows'
 
+  build-example:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-2025]
+        goarch: [amd64, arm64, riscv64]
+        exclude:
+          - os: macos-latest
+            goarch: riscv64
+          - os: windows-2025
+            goarch: arm64
+          - os: windows-2025
+            goarch: riscv64
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: actions/setup-python@v2
+      with:
+        python-version: 3.8
+    - run: python ci/download-wasmtime.py
+
+    - uses: actions/setup-go@v2
+      with:
+        go-version: ${{ matrix.go || '1.24.x' }}
+
+    - name: Install cross-compiler (arm64)
+      if: matrix.os == 'ubuntu-latest' && matrix.goarch == 'arm64'
+      run: sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu
+
+    - name: Install zig (riscv64)
+      if: matrix.os == 'ubuntu-latest' && matrix.goarch == 'riscv64'
+      uses: mlugg/setup-zig@v2
+      with:
+        version: 0.14.0
+
+    - name: Install Rust toolchain (riscv64)
+      if: matrix.os == 'ubuntu-latest' && matrix.goarch == 'riscv64'
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Build wasmtime for riscv64
+      if: matrix.os == 'ubuntu-latest' && matrix.goarch == 'riscv64'
+      run: |
+        git clone --depth 1 --branch v45.0.0 https://github.com/bytecodealliance/wasmtime.git /tmp/wasmtime
+        git -C /tmp/wasmtime submodule update --init
+        ./ci/local.sh /tmp/wasmtime riscv64
+
+    - name: Build example (linux amd64)
+      if: matrix.os == 'ubuntu-latest' && matrix.goarch == 'amd64'
+      working-directory: example
+      run: CGO_ENABLED=1 go build -ldflags "-s -w" ./main.go
+
+    - name: Build example (linux arm64)
+      if: matrix.os == 'ubuntu-latest' && matrix.goarch == 'arm64'
+      working-directory: example
+      env:
+        GOOS: linux
+        GOARCH: arm64
+        CGO_ENABLED: 1
+        CC: aarch64-linux-gnu-gcc
+      run: go build -ldflags "-s -w" ./main.go
+
+    - name: Build example (linux riscv64)
+      if: matrix.os == 'ubuntu-latest' && matrix.goarch == 'riscv64'
+      working-directory: example
+      env:
+        GOOS: linux
+        GOARCH: riscv64
+        CGO_ENABLED: 1
+        CC: zig cc -target riscv64-linux-gnu
+      run: go build -ldflags "-s -w" ./main.go
+
+    - name: Build example (macOS)
+      if: matrix.os == 'macos-latest'
+      working-directory: example
+      env:
+        GOARCH: ${{ matrix.goarch }}
+        CGO_ENABLED: 1
+      run: go build -ldflags "-s -w" ./main.go
+
+    - name: Build example (Windows)
+      if: matrix.os == 'windows-2025'
+      working-directory: example
+      env:
+        CGO_ENABLED: 1
+      run: go build -ldflags "-s -w" ./main.go
+
+    - name: Verify binary
+      working-directory: example
+      run: file main
+      if: runner.os != 'Windows'
+
+    - name: Verify binary (Windows)
+      working-directory: example
+      run: file main.exe
+      if: runner.os == 'Windows'
+
   coverage:
     runs-on: ubuntu-latest
     steps:
