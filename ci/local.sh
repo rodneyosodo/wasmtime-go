@@ -1,111 +1,53 @@
 #!/bin/bash
 set -euo pipefail
 
-copy_c_api_headers() {
-  local wasmtime_dir=$1 build_dir=$2
-  cp "$wasmtime_dir"/crates/c-api/include/*.h build/include
-  cp -r "$wasmtime_dir"/crates/c-api/include/wasmtime build/include
-  local conf
-  conf=$(find "$build_dir"/build/wasmtime-c-api-impl-*/out/include/wasmtime/conf.h 2>/dev/null | head -1)
-  if [ -n "$conf" ]; then
-    cp "$conf" build/include/wasmtime/conf.h
-  fi
-}
-
 wasmtime=$1
 if [ "$wasmtime" = "" ]; then
-  echo "usage: $0 <path-to-wasmtime> [target]"
-  echo "  target: native (default), riscv64"
+  echo "usage: $0 <path-to-wasmtime>"
   exit 1
 fi
 
-target=${2:-native}
-
-if [ "$target" = "riscv64" ]; then
-  # Add riscv64 to existing build directory (does not remove other platforms)
-  mkdir -p "build/linux-riscv64" "build/include" "build/include/wasmtime"
-  echo "package linux_riscv64" > "build/linux-riscv64/empty.go"
-
-  rust_target="riscv64gc-unknown-linux-gnu"
-
-  if command -v rustup &>/dev/null && ! rustup target list --installed 2>/dev/null | grep -q "$rust_target"; then
-    echo "Installing Rust target $rust_target ..."
-    rustup target add "$rust_target"
-  fi
-
-  build="$wasmtime/target/$rust_target/release"
-  if [ ! -d "$build" ]; then
-    build="$wasmtime/target/$rust_target/debug"
-  fi
-
-  if [ ! -f "$build/libwasmtime.a" ]; then
-    echo "Building wasmtime-c-api for $rust_target ..."
-    # Zig 0.14+ interprets --target as its own native target flag, but the cc
-    # crate passes an LLVM triple (e.g. --target=riscv64-unknown-linux-gnu)
-    # when cross-compiling. Use a wrapper that strips the conflicting flag.
-    # Cargo's CC env var can accept a command string, but the LINKER env var
-    # expects a single executable path. Create two wrapper scripts: one for
-    # compiling (strips --target to avoid Zig flag collision) and one for
-    # linking (invokes zig cc directly).
-    zig_cc_wrapper=$(mktemp)
-    cat > "$zig_cc_wrapper" <<'EOF'
-#!/bin/bash
-args=()
-for arg in "$@"; do
-  [[ "$arg" == --target=* ]] && continue
-  args+=("$arg")
-done
-exec zig cc -target riscv64-linux-gnu "${args[@]}"
-EOF
-    chmod +x "$zig_cc_wrapper"
-
-    zig_ld_wrapper=$(mktemp)
-    cat > "$zig_ld_wrapper" <<'EOF'
-#!/bin/bash
-exec zig cc -target riscv64-linux-gnu "$@"
-EOF
-    chmod +x "$zig_ld_wrapper"
-
-    CC_riscv64gc_unknown_linux_gnu="$zig_cc_wrapper" \
-      CARGO_TARGET_RISCV64GC_UNKNOWN_LINUX_GNU_LINKER="$zig_ld_wrapper" \
-      cargo build --release --target "$rust_target" \
-        -p wasmtime-c-api --manifest-path "$wasmtime/crates/c-api/artifact/Cargo.toml"
-    rm -f "$zig_cc_wrapper" "$zig_ld_wrapper"
-    build="$wasmtime/target/$rust_target/release"
-  fi
-
-  cp "$build/libwasmtime.a" "build/linux-riscv64/libwasmtime.a"
-
-  copy_c_api_headers "$wasmtime" "$build"
-
-  echo "riscv64 build ready. Cross-compile with:"
-  echo "  GOOS=linux GOARCH=riscv64 CGO_ENABLED=1 CC=\"zig cc -target riscv64-linux-gnu\" go build -ldflags \"-s -w\" ./main.go"
-  exit 0
-fi
-
-# Clean and re-create "build" directory hierarchy
 rm -rf build
+
+# Build the C API with CMake (invokes cargo under the hood)
+cmake -S "$wasmtime/crates/c-api" -B "$wasmtime/build-cmake" -DCMAKE_BUILD_TYPE=Release
+cmake --build "$wasmtime/build-cmake"
+rm -rf "$wasmtime/build-cmake"
+
+# Create the expected directory structure with empty.go files
 for d in "include" "include/wasmtime" "include/wasmtime/component" "include/wasmtime/component/types" "include/wasmtime/types" "linux-x86_64" "macos-x86_64" "windows-x86_64" "linux-aarch64" "macos-aarch64" "linux-riscv64"; do
-  path="build/$d"
-  mkdir -p "$path"
-  name=$(basename $d | tr - _)
-  echo "package $name" > "$path/empty.go"
+  mkdir -p "build/$d"
+  name=$(basename "$d" | tr - _)
+  echo "package $name" > "build/$d/empty.go"
 done
 
-build="$wasmtime/target/release"
-if [ ! -d "$build" ]; then
-  build="$wasmtime/target/debug"
-fi
-build=$(cd "$build" && pwd)
+# Determine host platform
+host_os=$(uname -s)
+host_arch=$(uname -m)
+case "$host_os-$host_arch" in
+  Linux-x86_64)   platform=linux-x86_64; rust_target=x86_64-unknown-linux-gnu ;;
+  Linux-aarch64)  platform=linux-aarch64; rust_target=aarch64-unknown-linux-gnu ;;
+  Linux-riscv64)  platform=linux-riscv64; rust_target=riscv64gc-unknown-linux-gnu ;;
+  Darwin-x86_64)  platform=macos-x86_64; rust_target=x86_64-apple-darwin ;;
+  Darwin-arm64)   platform=macos-aarch64; rust_target=aarch64-apple-darwin ;;
+  *) echo "Unsupported platform: $host_os-$host_arch"; exit 1 ;;
+esac
 
-if [ ! -f "$build/libwasmtime.a" ]; then
-  echo 'Missing libwasmtime.a. Build with:'
-  echo '  cargo build --release -p wasmtime-c-api --manifest-path crates/c-api/artifact/Cargo.toml'
+# The CMake/cargo build puts artifacts in the wasmtime target directory.
+# Native builds go to target/release/, cross builds to target/$rust_target/release/.
+wasmtime_target_dir="$wasmtime/target/$rust_target/release"
+if [ ! -d "$wasmtime_target_dir" ]; then
+  wasmtime_target_dir="$wasmtime/target/release"
+fi
+
+# Find the built library (may be libwasmtime.a or wasmtime.lib)
+built_lib=$(find "$wasmtime_target_dir" -maxdepth 1 -name "libwasmtime*.a" -o -name "wasmtime.lib" | head -1)
+if [ -z "$built_lib" ]; then
+  echo "Failed to find built wasmtime library in $wasmtime_target_dir"
   exit 1
 fi
+ln -s "$built_lib" "build/$platform/libwasmtime.a"
 
-for d in "linux-x86_64" "macos-x86_64" "linux-aarch64" "macos-aarch64"; do
-  ln -s "$build/libwasmtime.a" "build/$d/libwasmtime.a"
-done
-
-copy_c_api_headers "$wasmtime" "$build"
+# Copy headers
+cp "$wasmtime/crates/c-api/include/"*.h build/include/
+cp -r "$wasmtime/crates/c-api/include/wasmtime" build/include/

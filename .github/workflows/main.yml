@@ -113,17 +113,6 @@ jobs:
       with:
         version: 0.14.0
 
-    - name: Install Rust toolchain (riscv64)
-      if: matrix.os == 'ubuntu-latest' && matrix.goarch == 'riscv64'
-      uses: dtolnay/rust-toolchain@stable
-
-    - name: Build wasmtime for riscv64
-      if: matrix.os == 'ubuntu-latest' && matrix.goarch == 'riscv64'
-      run: |
-        git clone --depth 1 --branch v45.0.0 https://github.com/bytecodealliance/wasmtime.git /tmp/wasmtime
-        git -C /tmp/wasmtime submodule update --init
-        ./ci/local.sh /tmp/wasmtime riscv64
-
     - name: Build example (linux amd64)
       if: matrix.os == 'ubuntu-latest' && matrix.goarch == 'amd64'
       working-directory: example

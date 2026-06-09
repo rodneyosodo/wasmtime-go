@@ -153,26 +153,6 @@ $ go test
 
 And after that you should be good to go!
 
-### Cross-compiling for Linux riscv64
-
-Pass `riscv64` as the second argument to `ci/local.sh`. This requires
-[zig](https://ziglang.org/) as the C cross-compiler:
-
-```sh
-$ ./ci/local.sh /path/to/wasmtime riscv64
-```
-
-This will automatically install the Rust target, cross-compile the Wasmtime C
-API artifact, and set up the `build/linux-riscv64` directory. Then cross-compile
-your Go program:
-
-```sh
-$ cd example
-$ GOOS=linux GOARCH=riscv64 CGO_ENABLED=1 \
-  CC="zig cc -target riscv64-linux-gnu" \
-  go build -ldflags "-s -w" ./main.go
-```
-
 ### Release Checklist
 
 First run:
