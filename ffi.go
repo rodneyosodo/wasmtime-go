@@ -6,7 +6,7 @@ package wasmtime
 // #cgo windows LDFLAGS:-lwasmtime -luserenv -lole32 -lntdll -lws2_32 -lkernel32 -lbcrypt
 // #cgo linux,amd64 LDFLAGS:-L${SRCDIR}/build/linux-x86_64 -lwasmtime -lm
 // #cgo linux,arm64 LDFLAGS:-L${SRCDIR}/build/linux-aarch64 -lwasmtime -lm
-// #cgo linux,riscv64 LDFLAGS:-L${SRCDIR}/build/linux-riscv64 ${SRCDIR}/build/linux-riscv64/libwasmtime.a -lm -lgcc -lgcc_s
+// #cgo linux,riscv64 LDFLAGS:-L${SRCDIR}/build/linux-riscv64 -lwasmtime -lm
 // #cgo darwin,amd64 LDFLAGS:-L${SRCDIR}/build/macos-x86_64 -lwasmtime
 // #cgo darwin,arm64 LDFLAGS:-L${SRCDIR}/build/macos-aarch64 -lwasmtime
 // #cgo windows,amd64 LDFLAGS:-L${SRCDIR}/build/windows-x86_64
